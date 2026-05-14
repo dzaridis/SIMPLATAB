@@ -15,6 +15,7 @@ from Helpers import pipelines
 from Helpers import behave_metrics
 from Helpers import shap_module
 from Helpers import MetricsReport
+from Helpers import io_paths
 import pickle
 import yaml
 
@@ -263,8 +264,9 @@ def read_yaml(input_folder):
 
 
 def train_k_fold(X_train, y_train):
-    log_file = './Materials/error_log.log'
-    logging.basicConfig(filename=log_file, level=logging.ERROR, 
+    log_file = io_paths.error_log_path()
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+    logging.basicConfig(filename=log_file, level=logging.ERROR,
                     format='%(asctime)s:%(levelname)s:%(message)s')
     num_classes = len(np.unique(y_train))
     is_multiclass = num_classes > 2
@@ -340,8 +342,7 @@ def external_test(X_train, y_train, X_test, y_test, params_dict, thresholds):
     # Detect if multiclass
     num_classes = len(np.unique(y_train))
     is_multiclass = num_classes > 2
-    os.makedirs(os.path.join("./Materials", "ROC_Curves"), exist_ok=True)
-    roc_save = os.path.join("./Materials", "ROC_Curves")
+    roc_save = io_paths.roc_curves_dir()
     pipeline_dict_inf = {}
     params_inf= {}
     scores_inf = {}
@@ -402,8 +403,7 @@ def external_test(X_train, y_train, X_test, y_test, params_dict, thresholds):
         print(f"Error here: {e}")
 
     # Save models code remains the same
-    save_path_for_models = os.path.join("./Materials", "Models")
-    os.makedirs(save_path_for_models, exist_ok=True)
+    save_path_for_models = io_paths.models_dir()
 
     try:
         for name, pipeline in pipeline_dict_inf.items():
@@ -413,5 +413,5 @@ def external_test(X_train, y_train, X_test, y_test, params_dict, thresholds):
             print(f"Saved {name} pipeline to {filename}")
     except Exception as e:
         error_message = f"Error here: {e}\n"
-        with open(os.path.join("Materials", "Model_save_error_log.txt"), "a") as file:
+        with open(io_paths.materials_path("Model_save_error_log.txt"), "a") as file:
             file.write(error_message)

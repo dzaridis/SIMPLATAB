@@ -1,0 +1,191 @@
+# ============================================================
+#  Simplatab — ML Pipeline Configuration Template
+# ============================================================
+#
+# PURPOSE
+#   This file drives the Simplatab headless batch pipeline.
+#   Place it (along with Train.csv and Test.csv) in your
+#   read-only /input volume before running the container.
+#
+# USAGE
+#   docker run --rm \
+#     -v "/path/to/your/input:/input:ro" \
+#     -v "/path/to/your/output:/output" \
+#     harbor.eucaim.cancerimage.eu/processing-tools/simplatab:1.1.0 \
+#     --input /input --output /output
+#
+#   The container reads Train.csv, Test.csv and this file from
+#   /input. All results (metrics, plots, models, SHAP) are
+#   written under /output/Materials/ together with a
+#   machine-readable /output/results.json.
+#
+# DATA FORMAT REQUIREMENTS
+#   Train.csv and Test.csv must:
+#     * Be comma-separated CSV files.
+#     * Contain a column named exactly "Target" (case-sensitive).
+#     * Have the same set of feature columns in both files.
+#     * Use numeric values in the "Target" column
+#       (e.g., 0/1 for binary, 0/1/2/… for multiclass).
+#     * Not have missing values in the "Target" column.
+#       (Missing values in feature columns are handled internally.)
+# ============================================================
+
+
+# ------------------------------------------------------------
+# BIAS ASSESSMENT
+# ------------------------------------------------------------
+
+# BiasAssessment: whether to run the Data-Driven Bias Detection
+# Module (DBDM) before training.
+#
+#   true  — run bias analysis on Train.csv and Test.csv;
+#           results are saved under /output/Materials/BiasAssessment/
+#   false — skip bias analysis (faster; suitable when you have
+#           already audited your data for bias)
+#
+# Type: boolean   Allowed values: true | false
+BiasAssessment: false
+
+# Feature: name of the column in your CSV files that encodes
+# the sensitive / demographic attribute to audit for bias
+# (e.g., "Sex", "AgeGroup", "Site").
+#
+# Required only when BiasAssessment is true.
+# Set to an empty string ("") to disable even if BiasAssessment
+# is true (bias assessment will then be skipped with a warning).
+#
+# Type: string   Example: "Sex"
+Feature: ""
+
+
+# ------------------------------------------------------------
+# CROSS-VALIDATION
+# ------------------------------------------------------------
+
+# number_of_k_folds: how many stratified folds to use during
+# internal (training-set) cross-validation.
+#
+# Rule of thumb:
+#   * 5 folds is a good default for most dataset sizes.
+#   * Use 3 folds for very small datasets (< 100 samples).
+#   * Use 10 folds for larger, well-balanced datasets.
+#   * Must be >= 2.
+#
+# Type: integer   Range: 2 – N (where N ≤ smallest class count)
+number_of_k_folds: 5
+
+
+# ------------------------------------------------------------
+# HYPER-PARAMETER SEARCH (OPTIONAL)
+# ------------------------------------------------------------
+
+apply_grid_search:
+  # enabled: whether to perform automated hyper-parameter tuning.
+  #
+  #   true  — tune each model's hyper-parameters using
+  #           cross-validated search. Significantly increases
+  #           training time (minutes to hours per model).
+  #   false — train each model with its default parameters.
+  #           Recommended for a first exploratory run.
+  #
+  # Type: boolean   Allowed values: true | false
+  enabled: false
+
+  type:
+    # Randomized vs Exhaustive search (only relevant when
+    # enabled is true; ignored otherwise).
+    #
+    # Set exactly ONE of the two to true and the other to false.
+    #
+    #   Randomized: true  — randomly samples a subset of the
+    #     hyper-parameter space (faster, recommended for most cases).
+    #   Exhaustive: true  — tries every combination in the grid
+    #     (very slow; only feasible for small datasets or few models).
+    #
+    # Type: boolean
+    Randomized: true
+    Exhaustive: false
+
+
+# ------------------------------------------------------------
+# FEATURE CORRELATION FILTER
+# ------------------------------------------------------------
+
+# Correlation Limit: Pearson correlation threshold above which
+# one of two co-linear features is dropped before training.
+#
+# Lower values remove more features; higher values are more
+# permissive.
+#
+# Recommended range: 0.7 – 0.95
+#   * 0.9 is a common starting point.
+#   * Drop to ~0.7 if your data has known multicollinearity.
+#   * Raise to 0.99 (or 1.0) to keep nearly all features.
+#
+# Type: float   Range: 0.0 – 1.0
+Correlation Limit: 0.9
+
+
+# ------------------------------------------------------------
+# THRESHOLD OPTIMISATION (BINARY CLASSIFICATION ONLY)
+# ------------------------------------------------------------
+
+# Metric For Threshold Optimization: the metric used to find
+# the optimal decision threshold on each validation fold.
+# This threshold is averaged across folds and applied to the
+# external test set.
+#
+# Has no effect for multiclass problems (threshold is fixed
+# at 0.5 for multiclass; a WARNING is logged).
+#
+# Allowed values:
+#   "F-score"          — maximise the F1 score (default;
+#                        good balance of precision and recall)
+#   "Sensitivity"      — maximise true-positive rate
+#                        (use when missing positives is costly)
+#   "Specificity"      — maximise true-negative rate
+#                        (use when false alarms are costly)
+#   "Accuracy"         — maximise overall correct classifications
+#   "Balanced Accuracy"— maximise mean of Sensitivity and
+#                        Specificity (recommended for imbalanced data)
+#   "AUC"              — threshold at the point closest to (0,1)
+#                        on the ROC curve
+#
+# Type: string
+Metric For Threshold Optimization: "F-score"
+
+
+# ------------------------------------------------------------
+# MODELS TO TRAIN
+# ------------------------------------------------------------
+
+# Machine Learning Models: choose which classifiers to include.
+# Set each to true to train it or false to skip it.
+#
+# Available models:
+#   Logistic Regression      — fast, interpretable linear model
+#   Support Vector Machines  — effective for high-dimensional data;
+#                              significantly slower than tree models
+#   Random Forest            — robust ensemble; handles mixed feature
+#                              types well; recommended default
+#   Stochastic Gradient Descent — scalable linear model; faster than
+#                              LR on very large datasets
+#   Multi-Layer Neural Network  — MLP; may overfit on small datasets;
+#                              use with grid search for best results
+#   Decision Trees           — interpretable single-tree model;
+#                              prone to overfitting without pruning
+#   XGBoost                  — gradient-boosted trees; often the
+#                              best performer out-of-the-box
+#
+# Tip: start with a fast subset (Logistic Regression + Random Forest
+# + XGBoost) and add others if time permits.
+#
+# Type: boolean per model   Allowed values: true | false
+Machine Learning Models:
+  Logistic Regression: true
+  Support Vector Machines: false
+  Random Forest: true
+  Stochastic Gradient Descent: false
+  Multi-Layer Neural Network: false
+  Decision Trees: false
+  XGBoost: true

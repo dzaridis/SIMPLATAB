@@ -19,6 +19,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import davies_bouldin_score, silhouette_score
 from scipy.stats import chi2_contingency
 
+from Helpers import io_paths
+
 
 matplotlib.use('Agg')
 warnings.filterwarnings('always')
@@ -784,8 +786,7 @@ def bias_config(
 
     # Changed output location so results would not mix with inputs.
     file_name = os.path.splitext(os.path.basename(file_path))[0]
-    output_dir = os.path.join("./Materials/BiasAssessment",file_name)
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir = io_paths.bias_assessment_dir(file_name)
 
     # out_csv_path = os.path.join(output_dir, file_name+'_coded.csv')
     # D.to_csv(out_csv_path, index=False)

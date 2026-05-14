@@ -1,0 +1,45 @@
+# ============================================================
+#  Simplatab — Example configuration for MULTICLASS classification
+#  Dataset: Iris (scikit-learn built-in)
+#  Target: 0 = setosa, 1 = versicolor, 2 = virginica
+# ============================================================
+#
+# Copy this file together with Train.csv and Test.csv into
+# your input directory, then run:
+#
+#   docker run --rm \
+#     -v "$(pwd)/examples/multiclass:/input:ro" \
+#     -v "$(pwd)/out_multiclass:/output" \
+#     harbor.eucaim.cancerimage.eu/processing-tools/simplatab:1.1.0 \
+#     --input /input --output /output
+#
+# Note: Metric For Threshold Optimization is ignored for
+# multiclass problems (threshold is fixed at 0.5).
+#
+# See examples/machine_learning_parameters.yaml for full
+# documentation of every field.
+# ============================================================
+
+BiasAssessment: false
+Feature: ""
+
+number_of_k_folds: 3
+
+apply_grid_search:
+  enabled: false
+  type:
+    Randomized: true
+    Exhaustive: false
+
+Correlation Limit: 0.9
+
+Metric For Threshold Optimization: "F-score"
+
+Machine Learning Models:
+  Logistic Regression: true
+  Support Vector Machines: false
+  Random Forest: true
+  Stochastic Gradient Descent: false
+  Multi-Layer Neural Network: false
+  Decision Trees: false
+  XGBoost: true

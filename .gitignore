@@ -30,6 +30,12 @@ DummyExamples
 SimplatabOutputs
 Train.csv
 Test.csv
+_run_out_binary
+_run_out_multi
+.claude
+EUCAIM HARBOR.md
+EUCAIM Software Packaging Guide v1.2.pdf
+healthcheck.py
 
 
 # Distribution / packaging

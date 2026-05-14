@@ -1,0 +1,27 @@
+# Hadolint configuration for the Simplatab Dockerfile.
+#
+# Rules deliberately ignored:
+#   * DL3008 — pin OS package versions: we deliberately do not pin apt
+#     versions for Debian's frequently-rotating security updates;
+#   * DL3013 — pin pip versions: every Python dependency IS pinned in
+#     requirements.txt, so this lint flags only the meta `pip install
+#     --upgrade pip setuptools wheel` line, which is intentional;
+#   * DL3059 — multiple consecutive RUN: a few stages benefit from
+#     splitting RUN steps for clarity / build cache layering;
+#   * DL3015 — `apt-get install` without --no-install-recommends: every
+#     install line in the Dockerfile already passes that flag, so this
+#     check would only fire on false positives;
+#   * SC2086 — shell variable double-quoting: not relevant inside the
+#     Dockerfile RUN lines we use.
+ignored:
+  - DL3008
+  - DL3013
+  - DL3015
+  - DL3059
+  - SC2086
+
+# Trust the canonical Python base image even though it sometimes lags on
+# automated security upgrades. We track Python 3.9 explicitly.
+trustedRegistries:
+  - docker.io
+  - registry-1.docker.io

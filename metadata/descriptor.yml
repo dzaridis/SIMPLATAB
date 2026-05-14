@@ -1,0 +1,147 @@
+# EUCAIM CommandLineTool descriptor (CWL v1.2)
+# Tool: Simplatab — automated ML pipeline for tabular data.
+cwlVersion: v1.2
+class: CommandLineTool
+id: simplatab
+label: Simplatab Machine Learning Automator
+doc: |
+  Simplatab is an automated machine-learning pipeline for tabular data.
+  It performs:
+    * Data Bias Detection (DBDM) on the train and test CSV files,
+    * Stratified k-fold cross-validation training of a configurable set
+      of classifiers (Logistic Regression, SVM, Random Forest, SGD,
+      MLP, Decision Trees, XGBoost),
+    * Optional hyper-parameter search (randomized or exhaustive),
+    * External-test-set evaluation with metric reporting (Sensitivity,
+      Specificity, AUC, F-score, Accuracy, Balanced Accuracy),
+    * ROC / PR curve generation and confusion-matrix plots,
+    * Threshold optimisation against a chosen metric (binary only),
+    * SHAP-based explainability for every trained model,
+    * A machine-readable run index at <output>/results.json.
+
+  The tool runs in EUCAIM "headless" batch mode when invoked with
+  --input/--output. The same image also ships a Flask UI on port 5000
+  for local interactive use.
+
+baseCommand: ["/app/entrypoint.sh"]
+
+hints:
+  DockerRequirement:
+    dockerPull: harbor.eucaim.cancerimage.eu/processing-tools/simplatab:1.1.0
+  ResourceRequirement:
+    coresMin: 2
+    coresMax: 8
+    ramMin: 4096    # MB
+    ramMax: 16384   # MB
+    outdirMin: 1024 # MB
+
+requirements:
+  NetworkAccess:
+    networkAccess: false
+  InlineJavascriptRequirement: {}
+  EnvVarRequirement:
+    envDef:
+      SIMPLATAB_MODE: "batch"
+
+inputs:
+  input_directory:
+    type: Directory
+    label: Input directory
+    doc: |
+      Read-only directory containing Train.csv, Test.csv and (optionally)
+      machine_learning_parameters.yaml.
+    inputBinding:
+      prefix: --input
+    extensionFields:
+      data_type: "tabular_csv"
+
+  output_directory:
+    type: Directory
+    label: Output directory
+    doc: |
+      Writable directory. All artefacts (metrics, plots, SHAP, models,
+      bias reports) are written under <output>/Materials/. A machine-
+      readable index is written to <output>/results.json.
+    inputBinding:
+      prefix: --output
+    extensionFields:
+      data_type: "ml_artefacts"
+
+  log_level:
+    type:
+      type: enum
+      symbols: [DEBUG, INFO, WARNING, ERROR]
+    default: INFO
+    inputBinding:
+      prefix: --log-level
+
+  k_folds:
+    type: int?
+    label: Number of k-folds
+    inputBinding:
+      prefix: --k-folds
+
+  correlation_limit:
+    type: float?
+    label: Pairwise correlation limit
+    inputBinding:
+      prefix: --correlation-limit
+
+  threshold_metric:
+    type:
+      - "null"
+      - type: enum
+        symbols: ["F-score", "Sensitivity", "Specificity",
+                  "Accuracy", "Balanced Accuracy", "AUC"]
+    inputBinding:
+      prefix: --threshold-metric
+
+  bias_assessment:
+    type: boolean?
+    label: Enable bias assessment
+    inputBinding:
+      prefix: --bias-assessment
+
+  bias_feature:
+    type: string?
+    label: Sensitive feature column
+    inputBinding:
+      prefix: --bias-feature
+
+  grid_search:
+    type: boolean?
+    label: Enable grid search
+    inputBinding:
+      prefix: --grid-search
+
+  grid_search_type:
+    type:
+      - "null"
+      - type: enum
+        symbols: [randomized, exhaustive]
+    inputBinding:
+      prefix: --grid-search-type
+
+  models:
+    type: string?
+    label: Comma-separated list of models to train
+    doc: |
+      Allowed values (lower-case, comma-separated): logistic_regression,
+      svm, random_forest, sgd, mlp, decision_trees, xgboost.
+    inputBinding:
+      prefix: --models
+
+outputs:
+  results_json:
+    type: File
+    outputBinding:
+      glob: results.json
+    doc: Machine-readable run index.
+
+  artefacts:
+    type: Directory
+    outputBinding:
+      glob: Materials
+    doc: All metrics, plots, SHAP visualisations and serialized models.
+
+stdout: simplatab.log

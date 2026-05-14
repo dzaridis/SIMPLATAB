@@ -1,4 +1,37 @@
+# --- VCS / CI ---
+.git
+.github
+.gitignore
+.gitattributes
+.devcontainer
+.code-workspace
+.vscode
+
+# --- editor / OS junk ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# --- python ---
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.coverage
+.tox
+.eggs
+*.egg-info
+
+# --- secrets / env ---
+.env
+.env.*
+
+# --- legacy / experimental folders ---
 Example
+Examples/BreastCancerExample
+Examples/IrisExample
 app_exe
 Data
 Guide
@@ -8,18 +41,29 @@ Feature_Selection.txt
 model_summary.xlsx
 DockerTest
 Notebooks
-__pycache__
-tests
-__main__.py
-.vscode
-.github
-.gitignore
 dockerfile_init
 app_init.py
-.env
 docker-compose.yml
-README.md
-LICENCE
 templates_init
 Materials
-Guide
+Materials2
+
+# --- generated artefacts ---
+**/Materials
+results.json
+
+# --- documentation that should not bloat the image ---
+README.md
+LICENSE
+LICENSE.md
+*.pdf
+EUCAIM*.md
+docs
+
+# --- container build artefacts ---
+Dockerfile
+dockerfile
+.dockerignore
+
+# --- examples are not needed at runtime ---
+examples

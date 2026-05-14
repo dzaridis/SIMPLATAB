@@ -5,6 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, sen
 from werkzeug.utils import secure_filename
 import tempfile
 import shutil
+from Helpers import io_paths
 from Helpers.pipelines_main import train_k_fold, external_test, read_yaml
 from Helpers.data_checks import DataChecker
 from Helpers import DBDM
@@ -31,6 +32,16 @@ TEMP_INPUT_FOLDER = os.path.join(tempfile.gettempdir(), 'ml_app_input')
 TEMP_OUTPUT_FOLDER = os.path.join(tempfile.gettempdir(), 'ml_app_output')
 os.makedirs(TEMP_INPUT_FOLDER, exist_ok=True)
 os.makedirs(TEMP_OUTPUT_FOLDER, exist_ok=True)
+
+# UI mode writes pipeline artefacts under <TEMP_OUTPUT_FOLDER>/Materials so that
+# the same code path works for both the EUCAIM headless mode (--output dir) and
+# the legacy Flask UI mode (no /app write access for the eucaim user).
+MATERIALS_DIR = os.environ.get(
+    "SIMPLATAB_OUTPUT_DIR",
+    os.path.join(TEMP_OUTPUT_FOLDER, "Materials"),
+)
+io_paths.set_output_base(MATERIALS_DIR)
+os.makedirs(os.path.join(MATERIALS_DIR, "Models"), exist_ok=True)
 
 # Configure upload settings
 ALLOWED_EXTENSIONS = {'csv', 'yaml'}
@@ -154,114 +165,85 @@ def parameters():
 @app.route('/results')
 def results():
     result_files = []
-    
+
     # Detect if multiclass
     is_multiclass = False
     try:
-        # Check if any model files have multiclass info
-        materials_dir = os.path.join("/app", "Materials")
-        if os.path.exists(materials_dir):
-            test_results_path = os.path.join(materials_dir, "test_results.xlsx")
-            if os.path.exists(test_results_path):
-                test_results = pd.read_excel(test_results_path)
-                # Check column headers for multiclass indicators
-                if 'Number of Classes' in test_results.columns:
-                    num_classes = test_results['Number of Classes'].iloc[0]
-                    is_multiclass = num_classes > 2
+        test_results_path = os.path.join(MATERIALS_DIR, "test_results.xlsx")
+        if os.path.exists(test_results_path):
+            test_results = pd.read_excel(test_results_path)
+            if 'Number of Classes' in test_results.columns:
+                num_classes = test_results['Number of Classes'].iloc[0]
+                is_multiclass = num_classes > 2
     except Exception as e:
         print(f"Error detecting multiclass in results: {e}")
-    
-    # List of possible locations to check
-    possible_locations = [
-        os.path.join("/app", "Materials"),  # Absolute container path
-        "./Materials",                       # Relative path
-        os.path.abspath("./Materials"),      # Absolute path
-        TEMP_OUTPUT_FOLDER,                  # Your temp output folder
-        os.path.join(TEMP_OUTPUT_FOLDER, "Materials")  # Materials in temp folder
-    ]
 
-    # Check each location for files
-    for location in possible_locations:
-        if os.path.exists(location):
-            for root, dirs, files in os.walk(location):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(file_path, location)
-                    result_files.append({
-                        'name': rel_path,
-                        'path': os.path.join(os.path.basename(location), rel_path)
-                    })
-    
+    if os.path.exists(MATERIALS_DIR):
+        for root, dirs, files in os.walk(MATERIALS_DIR):
+            for file in files:
+                file_path = os.path.join(root, file)
+                rel_path = os.path.relpath(file_path, MATERIALS_DIR)
+                # Templates expect a "Materials/<rel>" prefix so that the
+                # download route can locate the file.
+                result_files.append({
+                    'name': rel_path,
+                    'path': os.path.join("Materials", rel_path).replace("\\", "/"),
+                })
+
     return render_template('results.html', result_files=result_files, is_multiclass=is_multiclass)
 
 @app.route('/download/<path:filepath>')
 def download_file(filepath):
-    # Split the filepath into directory and filename
+    # The template emits "Materials/<rel>" — strip the leading segment and
+    # serve from the configured MATERIALS_DIR.
     parts = filepath.split('/')
-    directory = os.path.join("/app", *parts[:-1])
-    filename = parts[-1]
-    
+    if parts and parts[0] == "Materials":
+        parts = parts[1:]
+    rel = os.path.join(*parts) if parts else ""
+    target = os.path.join(MATERIALS_DIR, rel)
+    directory = os.path.dirname(target)
+    filename = os.path.basename(target)
+
     print(f"Attempting to download from: {directory}, file: {filename}")
-    
+
     return send_from_directory(directory, filename, as_attachment=True)
 
 @app.route('/download_all')
 def download_all():
-    # Create a BytesIO object to store the zip file
     memory_file = io.BytesIO()
-    
-    # Path to the Materials folder in the container
-    materials_dir = os.path.join("/app", "Materials")
-    
-    # Create a zip file
     with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        # Walk through all files in Materials directory
-        for root, dirs, files in os.walk(materials_dir):
+        for root, dirs, files in os.walk(MATERIALS_DIR):
             for file in files:
                 file_path = os.path.join(root, file)
-                # Calculate path relative to Materials directory for the archive
-                arcname = os.path.relpath(file_path, materials_dir)
+                arcname = os.path.relpath(file_path, MATERIALS_DIR)
                 zipf.write(file_path, arcname)
-    
-    # Move the cursor to the beginning of the BytesIO object
     memory_file.seek(0)
-    
-    # Return the zip file as an attachment
+
     return send_file(
         memory_file,
         mimetype='application/zip',
         as_attachment=True,
-        download_name='pipeline_results.zip'  # Changed from attachment_filename to download_name
+        download_name='pipeline_results.zip'
     )
 
 
 @app.route('/clear_files', methods=['POST'])
 def clear_files():
-    # Path to the Materials folder in the container
-    materials_dir = os.path.join("/app", "Materials")
-    
-    # Check if directory exists
-    if os.path.exists(materials_dir):
-        # Remove all files in the Materials directory and its subdirectories
-        for root, dirs, files in os.walk(materials_dir, topdown=False):
+    if os.path.exists(MATERIALS_DIR):
+        for root, dirs, files in os.walk(MATERIALS_DIR, topdown=False):
             for file in files:
                 file_path = os.path.join(root, file)
                 try:
                     os.remove(file_path)
                 except Exception as e:
                     print(f"Error removing {file_path}: {e}")
-            
-            # Remove empty subdirectories except the Materials directory itself
-            if root != materials_dir:
+            if root != MATERIALS_DIR:
                 try:
                     os.rmdir(root)
                 except Exception as e:
                     print(f"Error removing directory {root}: {e}")
-    
-    # Recreate any necessary subdirectories
-    os.makedirs(os.path.join(materials_dir, "Models"), exist_ok=True)
-    
-    # Redirect back to the results page
+
+    os.makedirs(os.path.join(MATERIALS_DIR, "Models"), exist_ok=True)
     return redirect('/automl/results')
 
 

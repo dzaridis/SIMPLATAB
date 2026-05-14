@@ -13,6 +13,8 @@ from sklearn.linear_model import SGDClassifier, LogisticRegression
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from Helpers import io_paths
+
 
 class ShapValues:
     """Calculate SHAP values for a given model and dataset
@@ -396,16 +398,8 @@ def ShapAnalysis(ppln:Pipeline, X_test:pd.DataFrame, y_test:pd.Series, nm:str):
         print("-----------------------------------------------------------\n")
         
         # Create directory structure
-        try:
-            os.mkdir(os.path.join("./Materials", "Shap_Features"))
-        except OSError:
-            pass
-        shap_path = os.path.join("./Materials", "Shap_Features")
-        try:
-            os.mkdir(os.path.join(shap_path, f"{nm}"))
-        except OSError:
-            pass
-        shap_md_path = os.path.join(shap_path, f"{nm}")
+        shap_path = io_paths.shap_features_dir()
+        shap_md_path = io_paths.shap_features_dir(nm)
         
         # Create plots
         plts = ShapPlots(shap_values=shap_values)
@@ -419,7 +413,7 @@ def ShapAnalysis(ppln:Pipeline, X_test:pd.DataFrame, y_test:pd.Series, nm:str):
                 print(f"Created class-specific bar plots for {nm}")
         except Exception as e:
             error_message = f"Bar plot failed: {e}\n"
-            with open(os.path.join("Materials", "Shap_error_log.txt"), "a") as file:
+            with open(io_paths.materials_path("Shap_error_log.txt"), "a") as file:
                 file.write(error_message)
         
         try:
@@ -428,7 +422,7 @@ def ShapAnalysis(ppln:Pipeline, X_test:pd.DataFrame, y_test:pd.Series, nm:str):
                 print(f"Created class-specific summary plots for {nm}")
         except Exception as e:
             error_message = f"Summary plot failed: {e}\n"
-            with open(os.path.join("Materials", "Shap_error_log.txt"), "a") as file:
+            with open(io_paths.materials_path("Shap_error_log.txt"), "a") as file:
                 file.write(error_message)
 
         try:
@@ -437,7 +431,7 @@ def ShapAnalysis(ppln:Pipeline, X_test:pd.DataFrame, y_test:pd.Series, nm:str):
                 print(f"Created class-specific beeswarm plots for {nm}")
         except Exception as e:
             error_message = f"Beeswarm plot failed: {e}\n"
-            with open(os.path.join("Materials", "Shap_error_log.txt"), "a") as file:
+            with open(io_paths.materials_path("Shap_error_log.txt"), "a") as file:
                 file.write(error_message)
 
         try:
@@ -446,12 +440,12 @@ def ShapAnalysis(ppln:Pipeline, X_test:pd.DataFrame, y_test:pd.Series, nm:str):
                 print(f"Created class-specific heatmap plots for {nm}")
         except Exception as e:
             error_message = f"Heatmap plot failed: {e}\n"
-            with open(os.path.join("Materials", "Shap_error_log.txt"), "a") as file:
+            with open(io_paths.materials_path("Shap_error_log.txt"), "a") as file:
                 file.write(error_message)
 
     except Exception as e:
         error_message = f"Error in SHAP analysis: {e}\n"
         traceback_msg = traceback.format_exc()
-        with open(os.path.join("./Materials", "Shap_error_log.txt"), "a") as file:
+        with open(io_paths.materials_path("Shap_error_log.txt"), "a") as file:
             file.write(error_message)
             file.write(traceback_msg)

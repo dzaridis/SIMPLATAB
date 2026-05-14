@@ -3,6 +3,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import seaborn as sns
+from Helpers import io_paths
 
 
 def summary_results_excel(results, file:str, conf_matrix_name:str):
@@ -69,11 +70,7 @@ def summary_results_excel(results, file:str, conf_matrix_name:str):
             std_value = np.std(values)
             summary_results[model][metric] = f"{mean_value:.4f} ± {std_value:.4f}"
         
-        try: 
-            os.mkdir(os.path.join("Materials", "ConfusionMatrices"))
-        except OSError:
-            pass
-        path_conf = os.path.join("Materials", "ConfusionMatrices")
+        path_conf = io_paths.confusion_matrices_dir()
 
         # Plot the confusion matrix differently based on multiclass or binary
         if is_multiclass:
@@ -119,7 +116,7 @@ def summary_results_excel(results, file:str, conf_matrix_name:str):
             plt.close()
 
     df_summary = pd.DataFrame(summary_results).T
-    df_summary.to_excel(os.path.join("Materials",f"{file}.xlsx"))
+    df_summary.to_excel(io_paths.materials_path(f"{file}.xlsx"))
 
 def external_summary(results, file:str, conf_matrix_name:str):
     summary_results = {}
@@ -148,13 +145,8 @@ def external_summary(results, file:str, conf_matrix_name:str):
             'Balanced Accuracy': metrics['Balanced Accuracy']
         }
         
-        try: 
-            os.mkdir(os.path.join("Materials", "ConfusionMatrices"))
-        except OSError:
-            pass
+        path_conf = io_paths.confusion_matrices_dir()
 
-        path_conf = os.path.join("Materials", "ConfusionMatrices")
-        
         # Handle confusion matrix differently based on multiclass or binary
         if is_multiclass:
             # For multiclass, plot the full confusion matrix
@@ -199,5 +191,5 @@ def external_summary(results, file:str, conf_matrix_name:str):
 
     # Convert summary results to DataFrame
     df_summary = pd.DataFrame(summary_results).T
-    df_summary.to_excel(os.path.join("Materials",f"{file}.xlsx"))
+    df_summary.to_excel(io_paths.materials_path(f"{file}.xlsx"))
 
